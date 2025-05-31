@@ -61,10 +61,6 @@
                 <li x-show="isLoading" class="text-gray-500">Loading course content...</li>
                 <li x-show="!isLoading && allWordsFlat.length === 0" class="text-gray-500">No modules available.</li>
             </ul>
-            <button @click="initiatePractice(allWordsFlat)" x-show="!isLoading && allWordsFlat.length > 0"
-                class="mt-6 w-full px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-md">
-                Practice All Words
-            </button>
         </nav>
 
         <!-- Right Content Panel -->
