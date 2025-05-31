@@ -32,6 +32,28 @@ function createAppStateComponent() {
             this.isMobileMenuOpen = false;
         },
 
+        // ---- payment popup functions ----
+        showPaymentPopup() {
+            const popup = document.getElementById('payment-popup');
+            if (popup) {
+                popup.style.display = 'flex';
+            }
+        },
+
+        closePaymentPopup() {
+            const popup = document.getElementById('payment-popup');
+            if (popup) {
+                popup.style.display = 'none';
+            }
+        },
+
+        isModuleFree(moduleId) {
+            // Only the first module is free
+            // Sort modules by ID to ensure consistent ordering
+            const sortedModules = [...this.modules].sort((a, b) => a.id - b.id);
+            return sortedModules.length > 0 && sortedModules[0].id == moduleId;
+        },
+
         // ---- service functions ----
         ...wordServiceFunctions,
         ...moduleServiceFunctions,
@@ -53,6 +75,13 @@ function createAppStateComponent() {
                 console.log('[appState] Step 2: Loading HTML views...');
                 await loadHtmlViews.call(this);
                 console.log('[appState] HTML views loaded successfully');
+
+                // 2a. Add payment popup to the DOM
+                if (this.paymentPopupHtml) {
+                    const popupContainer = document.createElement('div');
+                    popupContainer.innerHTML = this.paymentPopupHtml;
+                    document.body.appendChild(popupContainer.firstElementChild);
+                }
 
                 // 3. fetch the modules list and populate navigation
                 console.log('[appState] Step 3: Checking database schema...');
@@ -191,16 +220,20 @@ function createAppStateComponent() {
             if (loadingIndicator) navList.appendChild(loadingIndicator);
 
             // Create module items
-            this.modules.forEach(module => {
+            this.modules.forEach((module, moduleIndex) => {
+                const isFree = this.isModuleFree(module.id);
                 const moduleHeader = document.createElement('li');
                 moduleHeader.className = 'font-semibold text-purple-700 mt-4 mb-2 border border-purple-200 rounded-lg p-3 cursor-pointer hover:bg-purple-50 transition-colors';
                 moduleHeader.innerHTML = `
                     <div class="flex justify-between items-center">
-                        <div>
-                            <div class="text-sm font-bold">${module.name}</div>
+                        <div class="flex-1">
+                            <div class="text-sm font-bold flex items-center gap-2">
+                                ${module.name}
+                                ${isFree ? '<span class="bg-green-500 text-white text-xs px-2 py-1 rounded">FREE</span>' : '<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>'}
+                            </div>
                             ${module.description ? `<div class="text-xs text-purple-600 font-normal mt-1">${module.description}</div>` : ''}
                         </div>
-                        <span class="module-toggle text-purple-500">▼</span>
+                        <span class="module-toggle text-purple-500">${isFree ? '▼' : ''}</span>
                     </div>
                 `;
 
@@ -211,6 +244,13 @@ function createAppStateComponent() {
 
                 // Add click handler to module header for expand/collapse and load words
                 moduleHeader.addEventListener('click', async () => {
+                    // Check if module is free
+                    if (!this.isModuleFree(module.id)) {
+                        // Show payment popup for non-free modules
+                        this.showPaymentPopup();
+                        return;
+                    }
+
                     const toggle = moduleHeader.querySelector('.module-toggle');
                     const isExpanded = !wordsContainer.classList.contains('hidden');
 
@@ -255,6 +295,11 @@ function createAppStateComponent() {
                     wordItem.textContent = word.term || 'Unknown word';
                     wordItem.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        // Check if module is free before allowing word access
+                        if (!this.isModuleFree(moduleId)) {
+                            this.showPaymentPopup();
+                            return;
+                        }
                         this.selectWordFromNav(word.id);
                     });
                     container.appendChild(wordItem);
@@ -366,17 +411,21 @@ function createAppStateComponent() {
                 const module = this.modules.find(m => m.id == moduleId);
                 const moduleName = module ? module.name : `Module ${moduleId}`;
                 const moduleDescription = module ? module.description : '';
+                const isFree = this.isModuleFree(moduleId);
 
                 // Create module header (clickable to expand/collapse)
                 const moduleHeader = document.createElement('li');
                 moduleHeader.className = 'font-semibold text-purple-700 mt-4 mb-2 border border-purple-200 rounded-lg p-3 cursor-pointer hover:bg-purple-50 transition-colors';
                 moduleHeader.innerHTML = `
                     <div class="flex justify-between items-center">
-                        <div>
-                            <div class="text-sm font-bold">${moduleName}</div>
+                        <div class="flex-1">
+                            <div class="text-sm font-bold flex items-center gap-2">
+                                ${moduleName}
+                                ${isFree ? '<span class="bg-green-500 text-white text-xs px-2 py-1 rounded">FREE</span>' : '<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>'}
+                            </div>
                             ${moduleDescription ? `<div class="text-xs text-purple-600 font-normal mt-1">${moduleDescription}</div>` : ''}
                         </div>
-                        <span class="module-toggle text-purple-500">▼</span>
+                        <span class="module-toggle text-purple-500">${isFree ? '▼' : ''}</span>
                     </div>
                 `;
 
@@ -392,6 +441,11 @@ function createAppStateComponent() {
                     wordItem.textContent = word.term || 'Unknown word';
                     wordItem.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        // Check if module is free before allowing word access
+                        if (!this.isModuleFree(moduleId)) {
+                            this.showPaymentPopup();
+                            return;
+                        }
                         this.selectWordFromNav(word.id);
                     });
                     wordsContainer.appendChild(wordItem);
@@ -460,6 +514,13 @@ function createAppStateComponent() {
 
                 // Add click handler to module header for expand/collapse
                 moduleHeader.addEventListener('click', () => {
+                    // Check if module is free
+                    if (!this.isModuleFree(moduleId)) {
+                        // Show payment popup for non-free modules
+                        this.showPaymentPopup();
+                        return;
+                    }
+
                     const toggle = moduleHeader.querySelector('.module-toggle');
                     const isExpanded = !wordsContainer.classList.contains('hidden');
 

@@ -1,0 +1,72 @@
+<!-- Payment Popup HTML Fragment -->
+<div id="payment-popup" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    style="display: none;">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all">
+        <div class="text-center">
+            <!-- Icon -->
+            <div class="mb-6">
+                <svg class="w-20 h-20 mx-auto text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                    </path>
+                </svg>
+            </div>
+
+            <!-- Title -->
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Unlock Full Course Access</h2>
+
+            <!-- Description -->
+            <p class="text-gray-600 mb-6">
+                Get instant access to all modules and master the entire course content. Join thousands of learners who
+                have transformed their skills!
+            </p>
+
+            <!-- Benefits -->
+            <div class="text-left mb-6 bg-purple-50 rounded-lg p-4">
+                <p class="font-semibold text-purple-700 mb-2">What you'll get:</p>
+                <ul class="space-y-2 text-sm text-gray-700">
+                    <li class="flex items-start">
+                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd"></path>
+                        </svg>
+                        <span>Complete access to all course modules</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd"></path>
+                        </svg>
+                        <span>Practice exercises for every lesson</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd"></path>
+                        </svg>
+                        <span>Lifetime access with free updates</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- CTA Button -->
+            <button onclick="window.open('https://whop.com/checkout/plan_5uZOPS526rjvI?d2c=true', '_blank')"
+                class="w-full bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                Get Full Course Access
+            </button>
+
+            <!-- Close Button -->
+            <button onclick="window.appStateInstance.closePaymentPopup()"
+                class="mt-4 text-gray-500 hover:text-gray-700 text-sm underline">
+                Continue with free preview
+            </button>
+        </div>
+    </div>
+</div>

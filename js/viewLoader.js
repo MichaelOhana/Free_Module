@@ -9,11 +9,13 @@ export async function loadHtmlViews() {
         const [
             // menuRes, // Uncomment if/when menu.html is used
             wordRes,
-            practiceRes
+            practiceRes,
+            paymentPopupRes
         ] = await Promise.all([
             // fetch(VIEWS.MENU),
             fetch(VIEWS.WORD_DETAIL),
-            fetch(VIEWS.PRACTICE)
+            fetch(VIEWS.PRACTICE),
+            fetch(VIEWS.PAYMENT_POPUP)
         ]);
 
         // if (!menuRes.ok) throw new Error(`Failed to fetch ${VIEWS.MENU}: ${menuRes.statusText}`);
@@ -25,6 +27,9 @@ export async function loadHtmlViews() {
         if (!practiceRes.ok) throw new Error(`Failed to fetch ${VIEWS.PRACTICE}: ${practiceRes.statusText}`);
         this.practiceViewHtml = await practiceRes.text();
 
+        if (!paymentPopupRes.ok) throw new Error(`Failed to fetch ${VIEWS.PAYMENT_POPUP}: ${paymentPopupRes.statusText}`);
+        this.paymentPopupHtml = await paymentPopupRes.text();
+
         console.log("[viewLoader.js] HTML views loaded successfully.");
     } catch (err) {
         console.error("[viewLoader.js] Error loading HTML views:", err);
@@ -32,6 +37,7 @@ export async function loadHtmlViews() {
         // Set error messages for individual views if they fail
         if (!this.wordDetailViewHtml) this.wordDetailViewHtml = `<p class="text-red-500 text-center">Error loading word detail view. Please refresh.</p>`;
         if (!this.practiceViewHtml) this.practiceViewHtml = `<p class="text-red-500 text-center">Error loading practice view. Please refresh.</p>`;
+        if (!this.paymentPopupHtml) this.paymentPopupHtml = `<p class="text-red-500 text-center">Error loading payment popup. Please refresh.</p>`;
         // if (!this.menuViewHtml) this.menuViewHtml = `<p class="text-red-500 text-center">Error loading menu view. Please refresh.</p>`;
     } finally {
         this.isLoadingHtmlViews = false;
