@@ -177,6 +177,24 @@ function createAppStateComponent() {
                     // Check how many clips are in the database
                     const clipsCount = this.executeQuery("SELECT COUNT(*) as count FROM clips") || [];
                     console.log('[appState] Total clips in database:', clipsCount[0]?.count || 0);
+
+                    // Show sample clips data if any exist
+                    if (clipsCount[0]?.count > 0) {
+                        const sampleClips = this.executeQuery("SELECT * FROM clips LIMIT 3") || [];
+                        console.log('[appState] Sample clips:', sampleClips);
+
+                        // Show which words have clips
+                        const wordsWithClips = this.executeQuery(`
+                            SELECT w.id, w.term, COUNT(c.id) as clip_count 
+                            FROM words w 
+                            LEFT JOIN clips c ON w.id = c.word_id 
+                            WHERE c.id IS NOT NULL 
+                            GROUP BY w.id, w.term 
+                            ORDER BY clip_count DESC 
+                            LIMIT 5
+                        `) || [];
+                        console.log('[appState] Words with clips:', wordsWithClips);
+                    }
                 }
 
                 return { tables, hasModulesTable, hasClipsTable };
@@ -773,11 +791,13 @@ function createAppStateComponent() {
 
             // Render YouTube clips using plain JavaScript with retry logic
             if (this.currentWord && this.currentWord.clips) {
-                console.log('[appState] Rendering clips with plain JS:', this.currentWord.clips.length);
+                console.log('[appState] Rendering clips with plain JS. Clips found:', this.currentWord.clips.length);
+                console.log('[appState] Clips data:', this.currentWord.clips);
 
                 // Retry logic to ensure container is available
                 let attempts = 0;
-                const maxAttempts = 10;
+                const maxAttempts = 15; // Increased attempts
+                const retryDelay = 50; // Reduced delay for faster attempts
 
                 const tryRenderClips = async () => {
                     attempts++;
@@ -788,30 +808,46 @@ function createAppStateComponent() {
                         this.renderYouTubeClips(this.currentWord.clips, 'youtube-clips-container');
                         return true;
                     } else if (attempts < maxAttempts) {
-                        console.log('[appState] Container not found, attempt', attempts, 'of', maxAttempts, ', retrying in 100ms...');
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        console.log('[appState] Container not found, attempt', attempts, 'of', maxAttempts, ', retrying in', retryDelay, 'ms...');
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
                         return tryRenderClips();
                     } else {
                         console.error('[appState] youtube-clips-container not found after', maxAttempts, 'attempts');
-                        // Try to create the container if it doesn't exist
-                        const fallbackContainer = document.createElement('div');
-                        fallbackContainer.id = 'youtube-clips-container';
-                        fallbackContainer.className = 'space-y-4 mt-6';
 
-                        const wordDetailContainer = document.querySelector('.bg-white.p-6.rounded-lg.shadow-md.space-y-6');
+                        // Try to find the word detail container and create fallback
+                        const wordDetailContainer = document.querySelector('[x-show="currentWord && !isLoadingWordDetails"]');
                         if (wordDetailContainer) {
+                            console.log('[appState] Found word detail container, creating fallback clips container');
+                            const fallbackContainer = document.createElement('div');
+                            fallbackContainer.id = 'youtube-clips-container';
+                            fallbackContainer.className = 'space-y-4 mt-6';
                             wordDetailContainer.appendChild(fallbackContainer);
+
                             console.log('[appState] Created fallback container, rendering clips...');
                             this.renderYouTubeClips(this.currentWord.clips, 'youtube-clips-container');
                             return true;
+                        } else {
+                            console.error('[appState] Could not find any suitable container for clips');
+                            return false;
                         }
-                        return false;
                     }
                 };
 
                 await tryRenderClips();
+            } else if (this.currentWord) {
+                console.log('[appState] Word loaded but no clips available for word:', this.currentWord.term);
+
+                // Still try to show the "no clips" message
+                const container = document.getElementById('youtube-clips-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-gray-500 italic p-6 bg-gray-50 rounded-lg text-center">
+                            No YouTube clips available for this word.
+                        </div>
+                    `;
+                }
             } else {
-                console.log('[appState] No clips to render');
+                console.log('[appState] No word data available for rendering clips');
             }
 
             this.isLoadingWordDetails = false;
@@ -1015,14 +1051,28 @@ function createAppStateComponent() {
 
                     // Load clips
                     try {
+                        console.log('[appState] Loading clips for word ID:', wordId);
                         const clipsQuery = 'SELECT * FROM clips WHERE word_id = ?';
                         const clips = this.executeQuery(clipsQuery, [wordId]) || [];
                         console.log('[appState] Clips query result for word', wordId, ':', clips);
+                        console.log('[appState] Number of clips found:', clips.length);
+
+                        if (clips.length > 0) {
+                            clips.forEach((clip, index) => {
+                                console.log(`[appState] Clip ${index + 1}:`, {
+                                    id: clip.id,
+                                    youtube_url: clip.youtube_url,
+                                    start_sec: clip.start_sec
+                                });
+                            });
+                        }
+
                         this.selectedWordClips = clips;
                         this.currentWord.clips = clips;
                         console.log('[appState] Clips assigned to currentWord:', this.currentWord.clips);
                     } catch (err) {
                         console.warn('[appState] Clips table not available or error loading clips:', err);
+                        console.warn('[appState] Error details:', err.message);
                         this.selectedWordClips = [];
                         this.currentWord.clips = [];
                     }
