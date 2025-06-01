@@ -25,11 +25,30 @@ function createAppStateComponent() {
 
         // ---- mobile menu functions ----
         toggleMobileMenu() {
+            console.log('[appState] toggleMobileMenu() called, current state:', this.isMobileMenuOpen);
+            console.log('[appState] toggleMobileMenu() event source check - Alpine component available:', !!this);
             this.isMobileMenuOpen = !this.isMobileMenuOpen;
+            console.log('[appState] toggleMobileMenu() new state:', this.isMobileMenuOpen);
+
+            // Add body class to prevent scrolling when menu is open
+            if (this.isMobileMenuOpen) {
+                document.body.classList.add('overflow-hidden');
+                console.log('[appState] Added overflow-hidden to body');
+            } else {
+                document.body.classList.remove('overflow-hidden');
+                console.log('[appState] Removed overflow-hidden from body');
+            }
         },
 
         closeMobileMenu() {
-            this.isMobileMenuOpen = false;
+            console.log('[appState] closeMobileMenu() called, current state:', this.isMobileMenuOpen);
+            if (this.isMobileMenuOpen) {
+                this.isMobileMenuOpen = false;
+                document.body.classList.remove('overflow-hidden');
+                console.log('[appState] Menu closed, state set to false');
+            } else {
+                console.log('[appState] Menu was already closed');
+            }
         },
 
         // ---- payment popup functions ----
@@ -64,6 +83,11 @@ function createAppStateComponent() {
             console.log('[appState] init()');
             // Make this instance globally available
             window.appStateInstance = this;
+
+            // Ensure mobile menu starts in closed state and cleanup any conflicts
+            this.isMobileMenuOpen = false;
+            document.body.classList.remove('overflow-hidden');
+            console.log('[appState] Mobile menu state initialized to closed');
 
             try {
                 // 1. open the client‑side DB
@@ -162,6 +186,12 @@ function createAppStateComponent() {
         // ---- navigation and view management ----
         async loadAllWordsForNavigation() {
             try {
+                // First, ensure we have all modules loaded
+                if (!this.modules || this.modules.length === 0) {
+                    console.log('[appState] Loading modules first...');
+                    this.loadModules();
+                }
+
                 // Load all words with their module assignments for the navigation panel
                 const allWordsQuery = `
                     SELECT w.*, m.id as module_id, m.name as module_name, m.description as module_description
@@ -173,6 +203,135 @@ function createAppStateComponent() {
                 this.allWordsFlat = this.executeQuery(allWordsQuery) ?? [];
 
                 console.log('[appState] Loaded words with modules:', this.allWordsFlat.length);
+
+                // **OPTIMIZATION: Preload all word details to eliminate loading delays**
+                console.log('[appState] Preloading complete word details for all words...');
+                this.wordDetailsCache = new Map();
+
+                // Batch load all related data
+                const wordIds = this.allWordsFlat.map(w => w.id);
+                if (wordIds.length > 0) {
+                    const placeholders = wordIds.map(() => '?').join(',');
+
+                    // Load all translations
+                    const translationsQuery = `SELECT words_id, translation FROM words_translations WHERE words_id IN (${placeholders}) AND language_code = ?`;
+                    const translations = this.executeQuery(translationsQuery, [...wordIds, CONFIG_TARGET_LANGUAGE_CODE]) || [];
+                    const translationsMap = new Map(translations.map(t => [t.words_id, t.translation]));
+
+                    // Load all examples
+                    const examplesQuery = `SELECT * FROM examples WHERE word_id IN (${placeholders})`;
+                    const examples = this.executeQuery(examplesQuery, wordIds) || [];
+                    const examplesByWord = examples.reduce((acc, ex) => {
+                        if (!acc[ex.word_id]) acc[ex.word_id] = [];
+                        acc[ex.word_id].push(ex);
+                        return acc;
+                    }, {});
+
+                    // Load all example translations
+                    const exampleIds = examples.map(ex => ex.id);
+                    if (exampleIds.length > 0) {
+                        const examplePlaceholders = exampleIds.map(() => '?').join(',');
+                        const exampleTranslationsQuery = `SELECT example_id, translation FROM example_translations WHERE example_id IN (${examplePlaceholders}) AND language_code = ?`;
+                        const exampleTranslations = this.executeQuery(exampleTranslationsQuery, [...exampleIds, CONFIG_TARGET_LANGUAGE_CODE]) || [];
+                        var exampleTranslationsMap = new Map(exampleTranslations.map(t => [t.example_id, t.translation]));
+                    } else {
+                        var exampleTranslationsMap = new Map();
+                    }
+
+                    // Load all conversations
+                    const conversationsQuery = `SELECT * FROM conversation_lines WHERE word_id IN (${placeholders}) ORDER BY id`;
+                    const conversations = this.executeQuery(conversationsQuery, wordIds) || [];
+                    const conversationsByWord = conversations.reduce((acc, conv) => {
+                        if (!acc[conv.word_id]) acc[conv.word_id] = [];
+                        acc[conv.word_id].push(conv);
+                        return acc;
+                    }, {});
+
+                    // Load all conversation translations
+                    const conversationIds = conversations.map(conv => conv.id);
+                    if (conversationIds.length > 0) {
+                        const convPlaceholders = conversationIds.map(() => '?').join(',');
+                        const convTranslationsQuery = `SELECT conversation_line_id, translation FROM conversation_line_translations WHERE conversation_line_id IN (${convPlaceholders}) AND language_code = ?`;
+                        const convTranslations = this.executeQuery(convTranslationsQuery, [...conversationIds, CONFIG_TARGET_LANGUAGE_CODE]) || [];
+                        var convTranslationsMap = new Map(convTranslations.map(t => [t.conversation_line_id, t.translation]));
+                    } else {
+                        var convTranslationsMap = new Map();
+                    }
+
+                    // Load all clips
+                    const clipsQuery = `SELECT * FROM clips WHERE word_id IN (${placeholders})`;
+                    const clips = this.executeQuery(clipsQuery, wordIds) || [];
+                    const clipsByWord = clips.reduce((acc, clip) => {
+                        if (!acc[clip.word_id]) acc[clip.word_id] = [];
+                        acc[clip.word_id].push(clip);
+                        return acc;
+                    }, {});
+
+                    // Build complete word details cache
+                    this.allWordsFlat.forEach(wordData => {
+                        const wordId = wordData.id;
+                        const wordExamples = examplesByWord[wordId] || [];
+                        const wordConversations = conversationsByWord[wordId] || [];
+                        const wordClips = clipsByWord[wordId] || [];
+
+                        // Process example sentences
+                        const exampleSentences = wordExamples.map(example => ({
+                            english: example.text,
+                            translation: exampleTranslationsMap.get(example.id),
+                            audioSrc: example.audio_data
+                        }));
+
+                        // Process conversations
+                        const conversationLines = wordConversations.map(convo => ({
+                            speaker: convo.speaker_label || 'Speaker',
+                            line: convo.text,
+                            translatedLine: convTranslationsMap.get(convo.id),
+                            audioSrc: convo.audio_data,
+                            lineOrder: convo.line_order,
+                            dbId: convo.id
+                        }));
+
+                        // Group conversations by line_order resets
+                        const conversationGroups = [];
+                        let currentGroup = [];
+                        let lastLineOrder = -1;
+
+                        conversationLines.forEach((line) => {
+                            if (line.lineOrder === 0 || line.lineOrder < lastLineOrder) {
+                                if (currentGroup.length > 0) {
+                                    conversationGroups.push([...currentGroup]);
+                                    currentGroup = [];
+                                }
+                            }
+                            currentGroup.push(line);
+                            lastLineOrder = line.lineOrder;
+                        });
+
+                        if (currentGroup.length > 0) {
+                            conversationGroups.push(currentGroup);
+                        }
+
+                        conversationGroups.forEach(group => {
+                            group.sort((a, b) => (a.lineOrder || 0) - (b.lineOrder || 0));
+                        });
+
+                        // Cache complete word details
+                        this.wordDetailsCache.set(wordId, {
+                            id: wordData.id,
+                            term: wordData.term,
+                            definition: wordData.definition,
+                            translation: translationsMap.get(wordId) || wordData.translation,
+                            pronunciation: wordData.pronunciation,
+                            audioSrc: wordData.audio_data,
+                            exampleSentences,
+                            conversation: conversationGroups.map(group => ({ lines: group })),
+                            clips: wordClips,
+                            notes: wordData.notes
+                        });
+                    });
+
+                    console.log('[appState] Preloaded complete details for', this.wordDetailsCache.size, 'words');
+                }
 
                 // If we have words but no modules loaded yet, extract them from the word data
                 if ((!this.modules || this.modules.length === 0) && this.allWordsFlat.length > 0) {
@@ -191,8 +350,15 @@ function createAppStateComponent() {
                     console.log('[appState] Extracted modules:', this.modules);
                 }
 
-                // Populate the navigation list
-                this.populateWordNavigation();
+                // Always populate navigation with all modules, not just ones with words
+                console.log('[appState] Total modules available:', this.modules.length);
+                if (this.modules && this.modules.length > 0) {
+                    // Use populateModulesOnly to show all modules, then words will be loaded on demand
+                    this.populateModulesOnly();
+                } else {
+                    // Fallback to word-based navigation if no modules are available
+                    this.populateWordNavigation();
+                }
             } catch (err) {
                 console.error('[appState] loadAllWordsForNavigation() error:', err);
                 this.error = 'Failed to load words for navigation';
@@ -219,8 +385,11 @@ function createAppStateComponent() {
             navList.innerHTML = '';
             if (loadingIndicator) navList.appendChild(loadingIndicator);
 
+            // Sort modules by ID to ensure consistent ordering (first module should be free)
+            const sortedModules = [...this.modules].sort((a, b) => a.id - b.id);
+
             // Create module items
-            this.modules.forEach((module, moduleIndex) => {
+            sortedModules.forEach((module, moduleIndex) => {
                 const isFree = this.isModuleFree(module.id);
                 const moduleHeader = document.createElement('li');
                 moduleHeader.className = 'font-semibold text-purple-700 mt-4 mb-2 border border-purple-200 rounded-lg p-3 cursor-pointer hover:bg-purple-50 transition-colors';
@@ -233,7 +402,7 @@ function createAppStateComponent() {
                             </div>
                             ${module.description ? `<div class="text-xs text-purple-600 font-normal mt-1">${module.description}</div>` : ''}
                         </div>
-                        <span class="module-toggle text-purple-500">${isFree ? '▼' : ''}</span>
+                        <span class="module-toggle text-purple-500">▼</span>
                     </div>
                 `;
 
@@ -582,7 +751,12 @@ function createAppStateComponent() {
             console.log('[appState] showWordDetail()', wordId);
             this.currentView = 'word';
             this.selectedWordId = wordId;
-            this.isLoadingWordDetails = true;
+
+            // **OPTIMIZATION: Skip loading state if word details are cached**
+            const isWordCached = this.wordDetailsCache && this.wordDetailsCache.has(wordId);
+            if (!isWordCached) {
+                this.isLoadingWordDetails = true;
+            }
 
             const viewContainer = document.getElementById('view-container');
             if (viewContainer && this.wordDetailViewHtml) {
@@ -641,12 +815,58 @@ function createAppStateComponent() {
         },
 
         async loadWordDetailsById(wordId) {
-            if (!this.db || !wordId) {
-                this.error = "Database not available or no word ID provided.";
+            if (!wordId) {
+                this.error = "No word ID provided.";
                 return;
             }
 
             try {
+                // **OPTIMIZATION: Use preloaded cache instead of database queries**
+                if (this.wordDetailsCache && this.wordDetailsCache.has(wordId)) {
+                    console.log('[appState] Loading word details from cache for:', wordId);
+                    this.currentWord = this.wordDetailsCache.get(wordId);
+
+                    // Also keep the old format for backward compatibility
+                    this.selectedWordDetails = {
+                        id: this.currentWord.id,
+                        term: this.currentWord.term,
+                        definition: this.currentWord.definition,
+                        translation: this.currentWord.translation,
+                        pronunciation: this.currentWord.pronunciation,
+                        audio_data: this.currentWord.audioSrc,
+                        notes: this.currentWord.notes
+                    };
+
+                    this.selectedWordExamples = this.currentWord.exampleSentences.map(ex => ({
+                        text: ex.english,
+                        audio_data: ex.audioSrc
+                    }));
+
+                    this.selectedWordConversations = [];
+                    this.currentWord.conversation.forEach(convoBlock => {
+                        this.selectedWordConversations.push(...convoBlock.lines.map(line => ({
+                            speaker_label: line.speaker,
+                            text: line.line,
+                            audio_data: line.audioSrc,
+                            line_order: line.lineOrder,
+                            id: line.dbId
+                        })));
+                    });
+
+                    this.selectedWordClips = this.currentWord.clips;
+
+                    console.log('[appState] Word details loaded from cache:', this.currentWord);
+                    return;
+                }
+
+                // **FALLBACK: Original database queries for words not in cache**
+                console.log('[appState] Word not in cache, loading from database:', wordId);
+
+                if (!this.db) {
+                    this.error = "Database not available.";
+                    return;
+                }
+
                 // Load basic word details
                 const wordQuery = 'SELECT * FROM words WHERE id = ?';
                 const wordResults = this.executeQuery(wordQuery, [wordId]);

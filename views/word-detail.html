@@ -1,14 +1,10 @@
 <div class="pt-16 md:pt-0">
-    <button @click="goBackToWordList()"
-        class="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
-        &larr; Back to Word List
-    </button>
-
     <div x-show="isLoadingWordDetails" class="text-center p-6">
         <p class="text-lg text-gray-500">Loading word details...</p>
     </div>
 
-    <div x-show="currentWord && !isLoadingWordDetails" class="bg-white p-6 rounded-lg shadow-md space-y-6">
+    <div x-show="currentWord && !isLoadingWordDetails"
+        class="bg-white p-2 md:p-6 rounded-none md:rounded-lg shadow-none md:shadow-md space-y-4 md:space-y-6">
         <!-- Word Term and Basic Info -->
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-4xl font-bold text-purple-800" x-text="currentWord?.term"></h2>
