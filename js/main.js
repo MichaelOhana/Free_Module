@@ -84,10 +84,13 @@ function createAppStateComponent() {
             // Make this instance globally available
             window.appStateInstance = this;
 
-            // Ensure mobile menu starts in closed state and cleanup any conflicts
-            this.isMobileMenuOpen = false;
+            // Set initial menu state based on screen size
+            // On desktop (md and larger), menu should start open
+            // On mobile, menu should start closed
+            const isDesktop = window.innerWidth >= 768; // 768px is the md breakpoint in Tailwind
+            this.isMobileMenuOpen = isDesktop;
             document.body.classList.remove('overflow-hidden');
-            console.log('[appState] Mobile menu state initialized to closed');
+            console.log('[appState] Mobile menu state initialized - Desktop:', isDesktop, 'Menu open:', this.isMobileMenuOpen);
 
             try {
                 // 1. open the client‑side DB
