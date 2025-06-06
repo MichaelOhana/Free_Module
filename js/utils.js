@@ -90,7 +90,7 @@ export function renderYouTubeClips(clips, containerId) {
         return `
                         <div class="relative rounded-lg overflow-hidden shadow-md bg-black" style="padding-bottom: 56.25%;">
                             <iframe class="absolute top-0 left-0 w-full h-full"
-                                src="https://www.youtube-nocookie.com/embed/${videoId}?start=${clip.start_sec || 0}&playsinline=1&iv_load_policy=3&rel=0&showinfo=0&modestbranding=1&controls=1&fs=0&autoplay=0&disablekb=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&widgetid=1&forigin=${encodeURIComponent(window.location.origin)}&aoriginsup=1&gporigin=${encodeURIComponent(window.location.origin)}&vf=6"
+                                src="https://www.youtube.com/embed/${videoId}?start=${clip.start_sec || 0}&playsinline=1&iv_load_policy=3&rel=0&showinfo=0&modestbranding=1&controls=1&fs=0&autoplay=0&disablekb=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&widgetid=1&forigin=${encodeURIComponent(window.location.origin)}&aoriginsup=1&gporigin=${encodeURIComponent(window.location.origin)}&vf=6"
                                 frameborder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowfullscreen>
