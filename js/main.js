@@ -82,12 +82,14 @@ function createAppStateComponent() {
             widgetDiv.id = widgetId;
             container.appendChild(widgetDiv);
 
+            const cleanTerm = this.currentWord.term.split('(')[0].trim();
+
             if (typeof window.YG !== 'undefined' && window.YG.Widget) {
                 try {
                     new window.YG.Widget(widgetId, {
                         components: 8415,
                         'bkg-color': 'theme_light',
-                        query: this.currentWord.term,
+                        query: cleanTerm,
                         lang: 'english',
                     });
                 } catch (error) {
@@ -97,7 +99,7 @@ function createAppStateComponent() {
             } else {
                 // Defer initialization
                 window.youglishWidgetConfig = {
-                    term: this.currentWord.term,
+                    term: cleanTerm,
                     widgetId: widgetId
                 };
             }
